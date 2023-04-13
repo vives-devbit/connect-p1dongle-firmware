@@ -146,6 +146,7 @@ void setup(){
   /*TEMPORARY BOOTSTRAP*/
   alpha_fleet = true;
   dev_fleet = false;
+  /*END*/
   saveConfig();
   // Initialize SPIFFS
   syslog("Mounting SPIFFS... ", 0);
