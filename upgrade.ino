@@ -67,7 +67,7 @@ boolean startUpdate(){
       if(bundleLoaded){
         String baseUrl ="https://raw.githubusercontent.com/realto-energy/connect-p1dongle-firmware/";
         if(dev_fleet) baseUrl += "develop/bin/connect-p1dongle-firmware";
-        if(alpha_fleet) baseUrl += "alpha/bin/connect-p1dongle-firmware";
+        else if(alpha_fleet) baseUrl += "alpha/bin/connect-p1dongle-firmware";
         else baseUrl += "main/bin/connect-p1dongle-firmware";
         String fileUrl = baseUrl + ".ino.bin"; //leaving this split up for now if we later want to do versioning in the filename
         syslog("Getting new firmware over HTTPS/TLS", 0);
@@ -185,7 +185,7 @@ boolean finishUpdate(bool restore){
     syslog("Finishing upgrade. Preparing to download static files.", 1);
     String baseUrl = "https://raw.githubusercontent.com/realto-energy/connect-p1dongle-firmware/";
     if(dev_fleet) baseUrl += "develop";
-    if(alpha_fleet) baseUrl += "alpha";
+    else if(alpha_fleet) baseUrl += "alpha";
     else baseUrl += "main";
     String fileUrl = baseUrl + "/bin/";
     if(restore) fileUrl += "restore";
