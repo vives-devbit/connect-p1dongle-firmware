@@ -49,7 +49,7 @@ void restoreSPIFFS(){
   syslog("Downloading cert bundle", 0);
   String baseUrl = "https://raw.githubusercontent.com/realto-energy/connect-p1dongle-firmware/";
   if(dev_fleet) baseUrl += "develop";
-  if(alpha_fleet) baseUrl += "alpha";
+  else if(alpha_fleet) baseUrl += "alpha";
   else baseUrl += "main";
   String fileUrl = baseUrl + "/data/cert/x509_crt_bundle.bin";
   String s = "/cert/x509_crt_bundle.bin";

@@ -144,7 +144,7 @@ void setup(){
   delay(100);
   restoreConfig();
   /*TEMPORARY BOOTSTRAP*/
-  alpha_fleet =true;
+  alpha_fleet = true;
   dev_fleet = false;
   saveConfig();
   /*END*/
