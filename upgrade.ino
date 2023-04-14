@@ -13,7 +13,7 @@ boolean checkUpdate(){
       syslog("Checking repository for firmware update... ", 0);
       String checkUrl = "https://raw.githubusercontent.com/realto-energy/connect-p1dongle-firmware/";
       if(dev_fleet) checkUrl += "develop/version";
-      if(alpha_fleet) checkUrl += "alpha/version";
+      else if(alpha_fleet) checkUrl += "alpha/version";
       else checkUrl += "main/version";
       syslog("Connecting to " + checkUrl, 0);
       if (https.begin(*client, checkUrl)) {  
