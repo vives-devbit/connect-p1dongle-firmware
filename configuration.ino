@@ -25,6 +25,7 @@ boolean restoreConfig() {
   ha_en = preferences.getBool("HA_EN");
   counter = preferences.getUInt("counter", 0);
   bootcount = preferences.getUInt("reboots", 0);
+  refbootcount = preferences.getUInt("refboots", 0);
   last_reset = preferences.getString("LAST_RESET");
   dsmrVersion = preferences.getUInt("DM_DSMRV");
   trigger_interval = preferences.getUInt("TRG_INT");
@@ -158,6 +159,7 @@ boolean saveBoots(){
   preferences.end();
   preferences.begin("cofy-config", false);
   preferences.putUInt("reboots", bootcount);
+  preferences.putUInt("refboots", bootcount);
   preferences.end();
   preferences.begin("cofy-config", true);
   return true;

@@ -18,7 +18,7 @@
 #include "ArduinoJson.h"
 #include <elapsedMillis.h>
 
-unsigned int fw_ver = 104;
+unsigned int fw_ver = 105;
 unsigned int onlineVersion, fw_new;
 DNSServer dnsServer;
 AsyncWebServer server(80);
@@ -101,7 +101,7 @@ boolean ledState = true;
 byte unitState = 0;
 
 //General housekeeping vars
-unsigned int counter, bootcount, reconncount;
+unsigned int counter, bootcount, refbootcount, reconncount, remotehostcount;
 String resetReason, last_reset, last_reset_verbose;
 float freeHeap, minFreeHeap, maxAllocHeap;
 Preferences preferences;  
@@ -301,7 +301,7 @@ void loop(){
   if(!wifiSTA){
     dnsServer.processNextRequest();
     if(!timeSet) setMeterTime();
-    if(sinceWifiCheck >= 300000){
+    if(sinceWifiCheck >= 600000){
       if(scanWifi()) rebootInit = true;
       sinceWifiCheck = 0;
     }
@@ -342,7 +342,7 @@ void loop(){
     }
     if(wifiError || mqttHostError || mqttClientError || httpsError || meterError || eidError || !spiffsMounted) unitState = 5;
     else unitState = 4;
-    if(reconncount > 15){
+    if(reconncount > 15 || remotehostcount > 60){
       last_reset = "Rebooting to try fix connections";
       if(saveConfig()){
         syslog("Rebooting to try fix connections", 2);

@@ -96,7 +96,7 @@ void connectMqtt() {
           if (mqtt_auth) mqttclientSecure.connect(mqtt_id.c_str(), mqtt_user.c_str(), mqtt_pass.c_str(), mqtt_topic.c_str(), 1, true, "offline");
           else mqttclientSecure.connect(mqtt_id.c_str());
           mqttretry++;
-          reconncount++;
+          remotehostcount++;
           delay(250);
         }
         Serial.println("");
