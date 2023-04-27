@@ -230,7 +230,7 @@ void setup(){
       if(update_finish){
         finishUpdate(false);
       }
-      if(restore_finish){
+      if(restore_finish || !spiffsMounted){
         finishUpdate(true);
       }
       if(mqtt_en) setupMqtt();
