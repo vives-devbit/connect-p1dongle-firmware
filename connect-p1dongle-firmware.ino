@@ -143,11 +143,6 @@ void setup(){
   initConfig();
   delay(100);
   restoreConfig();
-  /*TEMPORARY BOOTSTRAP*/
-  alpha_fleet = true;
-  dev_fleet = false;
-  saveConfig();
-  /*END*/
   // Initialize SPIFFS
   syslog("Mounting SPIFFS... ", 0);
   if(!SPIFFS.begin(true)){
@@ -235,7 +230,7 @@ void setup(){
       if(update_finish){
         finishUpdate(false);
       }
-      if(restore_finish){
+      if(restore_finish || !spiffsMounted){
         finishUpdate(true);
       }
       if(mqtt_en) setupMqtt();

@@ -13,7 +13,7 @@ boolean checkUpdate(){
       syslog("Checking repository for firmware update... ", 0);
       String checkUrl = "https://raw.githubusercontent.com/realto-energy/connect-p1dongle-firmware/";
       if(dev_fleet) checkUrl += "develop/version";
-      if(alpha_fleet) checkUrl += "alpha/version";
+      else if(alpha_fleet) checkUrl += "alpha/version";
       else checkUrl += "main/version";
       syslog("Connecting to " + checkUrl, 0);
       if (https.begin(*client, checkUrl)) {  
@@ -67,7 +67,7 @@ boolean startUpdate(){
       if(bundleLoaded){
         String baseUrl ="https://raw.githubusercontent.com/realto-energy/connect-p1dongle-firmware/";
         if(dev_fleet) baseUrl += "develop/bin/connect-p1dongle-firmware";
-        if(alpha_fleet) baseUrl += "alpha/bin/connect-p1dongle-firmware";
+        else if(alpha_fleet) baseUrl += "alpha/bin/connect-p1dongle-firmware";
         else baseUrl += "main/bin/connect-p1dongle-firmware";
         String fileUrl = baseUrl + ".ino.bin"; //leaving this split up for now if we later want to do versioning in the filename
         syslog("Getting new firmware over HTTPS/TLS", 0);
@@ -185,7 +185,7 @@ boolean finishUpdate(bool restore){
     syslog("Finishing upgrade. Preparing to download static files.", 1);
     String baseUrl = "https://raw.githubusercontent.com/realto-energy/connect-p1dongle-firmware/";
     if(dev_fleet) baseUrl += "develop";
-    if(alpha_fleet) baseUrl += "alpha";
+    else if(alpha_fleet) baseUrl += "alpha";
     else baseUrl += "main";
     String fileUrl = baseUrl + "/bin/";
     if(restore) fileUrl += "restore";
@@ -212,6 +212,7 @@ boolean finishUpdate(bool restore){
         while(delimEnd < eof){
           delimEnd = payload.indexOf('\n', delimStart);
           String s = "/";
+          String temp = payload.substring(delimStart, delimEnd); //temp fix, see below
           if(restore) s += payload.substring(delimStart, delimEnd-1);
           else s += payload.substring(delimStart, delimEnd);
           delimStart = delimEnd+1;
@@ -237,6 +238,36 @@ boolean finishUpdate(bool restore){
                 }
                 else{
                   syslog("Could not fetch file, HTTPS code " + String(httpCode), 2);
+                  if(httpCode == 400 || httpCode == 404){ //temp fix till we can figure out the issue with non-deterministic behaviour of line-endings (github encoding?)
+                    https.end();
+                    s = "/";
+                    s += temp;
+                    delimStart = delimEnd+1;
+                    fileUrl = baseUrl + "/data" + s;
+                    Serial.println(fileUrl);
+                    if (s) {
+                      if (https.begin(*client, fileUrl)) {
+                        httpCode = https.GET();
+                        if (httpCode > 0) {
+                          if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_MOVED_PERMANENTLY) {
+                            SPIFFS.remove(s);
+                            File f = SPIFFS.open(s, FILE_WRITE);
+                            long contentLength = https.getSize();
+                            Serial.print("File size: ");
+                            Serial.println(contentLength);
+                            Serial.println("Begin download");
+                            size_t written = https.writeToStream(&f);
+                            if (written == contentLength) {
+                              Serial.println("Written : " + String(written) + " successfully");
+                              filesUpdated = true;
+                            }
+                            f.close();
+                          }
+                        }
+                      }
+                    }
+                    
+                  }
                 }
               } 
               else {
