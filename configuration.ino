@@ -1,6 +1,6 @@
 boolean restoreConfig() {
   wifi_ssid = preferences.getString("WIFI_SSID");
-  wifi_password = preferences.getString("WIFI_PASSWD");
+  wifi_password = preferences.getString("WIFI_PASSWD"); 
   email = preferences.getString("EMAIL");  
   wifiSTA = preferences.getBool("WIFI_STA");
   mqtt_en = preferences.getBool("MQTT_EN");
