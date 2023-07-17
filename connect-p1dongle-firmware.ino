@@ -19,7 +19,7 @@
 #include <elapsedMillis.h>
 #include "ledControl.h"
 
-unsigned int fw_ver = 105;
+unsigned int fw_ver = 106;
 unsigned int onlineVersion, fw_new;
 DNSServer dnsServer;
 AsyncWebServer server(80);
@@ -220,8 +220,9 @@ void loop(){
       setMeterTime();
       sinceClockCheck = 0;
     }
-    if(mTimeFound && ! meterError) unitState = 0;
-    else unitState = 2;
+    if(mTimeFound && ! meterError && !wifiError) unitState = 0;
+    else if(meterError) unitState = 2;
+    else if(wifiError) unitState = 1;
   }
   else{
     if(!bundleLoaded) restoreSPIFFS();
@@ -253,7 +254,8 @@ void loop(){
       else sinceEidUpload = (15*60*900000)-(5*60*1000);
     }
     if(meterError) unitState = 6;
-    else if(wifiError || mqttHostError || mqttClientError || httpsError) unitState = 5;
+    else if(wifiError) unitState = 1;
+    else if(mqttHostError || mqttClientError || httpsError) unitState = 5;
     else unitState = 4;
     if(reconncount > 15 || remotehostcount > 60){
       last_reset = "Rebooting to try fix connections";

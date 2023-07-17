@@ -147,6 +147,7 @@ void initWifi(){
       }
       if(mqtt_en) setupMqtt();
       sinceConnCheck = 60000;
+      server.addHandler(new WebRequestHandler());
       update_autoCheck = true;
       if(update_autoCheck) {
         sinceUpdateCheck = 86400000-60000;
@@ -166,6 +167,7 @@ void initWifi(){
     WiFi.softAP("p1dongle");
     dnsServer.start(53, "*", WiFi.softAPIP());
     MDNS.begin("p1dongle");
+    server.addHandler(new WebRequestHandler()).setFilter(ON_AP_FILTER);//only when requested from AP
     syslog("AP set up", 1);
     unitState = 0;
   }
