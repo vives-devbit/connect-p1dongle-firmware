@@ -121,7 +121,7 @@ String mqtt_host, mqtt_id, mqtt_user, mqtt_pass;
 uint8_t prevButtonState = false;
 boolean configSaved, resetWifi, resetAll;
 boolean mqtt_en, mqtt_tls, mqtt_auth;
-boolean update_autoCheck, update_auto, updateAvailable, update_start, update_finish, restore_finish, eid_en, ha_en, ha_metercreated;
+boolean update_autoCheck, update_auto, updateAvailable, update_start, update_finish, restore_finish, eid_en, ha_en, ha_metercreated, reinit_spiffs;
 unsigned int mqtt_port;
 unsigned long upload_throttle;
 String eid_webhook;
@@ -143,22 +143,7 @@ void setup(){
   initConfig();
   delay(100);
   restoreConfig();
-  // Initialize SPIFFS
-  syslog("Mounting SPIFFS... ", 0);
-  if(!SPIFFS.begin(true)){
-    syslog("Could not mount SPIFFS", 3);
-  }
-  else{
-    syslog("SPIFFS used bytes/total bytes:" + String(SPIFFS.usedBytes()) +"/" + String(SPIFFS.totalBytes()), 0);
-    listDir(SPIFFS, "/", 0);
-    File file = SPIFFS.open("/index.html");
-    if(!file || file.isDirectory() || file.size() == 0) {
-        syslog("Could not load files from SPIFFS", 3);
-    }
-    else spiffsMounted = true;
-    file.close();
-  }
-  syslog("----------------------------", 1);
+
   syslog("Digital meter dongle " + String(apSSID) +" V" + String(fw_ver/100.0) + " by plan-d.io and re.alto", 1);
   if(dev_fleet) syslog("Using experimental (development) firmware", 2);
   if(alpha_fleet) syslog("Using pre-release (alpha) firmware", 0);
@@ -180,85 +165,7 @@ void setup(){
     attachInterrupt(26, pulseCounter2, CHANGE);
   }
   delay(100);
-  //your other setup stuff...
-  if(wifiSTA){
-    syslog("WiFi mode: station", 1);
-    WiFi.mode(WIFI_STA);
-    WiFi.begin(wifi_ssid.c_str(), wifi_password.c_str());
-    WiFi.setHostname(apSSID);
-    elapsedMillis startAttemptTime;
-    syslog("Attempting connection to WiFi network " + wifi_ssid, 0);
-    while (WiFi.status() != WL_CONNECTED && startAttemptTime < 20000) {
-      delay(200);
-      Serial.print(".");
-    }
-    Serial.println("");
-    if(WiFi.status() == WL_CONNECTED){
-      syslog("Connected to the WiFi network " + wifi_ssid, 1);
-      MDNS.begin("apSSID");
-      unitState = 5;
-      MDNS.addService("http", "tcp", 80);
-      /*Start NTP time sync*/
-      setClock(true);
-      printLocalTime(true);
-      if(client){
-        syslog("Setting up TLS/SSL client", 0);
-        client->setUseCertBundle(true);
-        // Load certbundle from SPIFFS
-        File file = SPIFFS.open("/cert/x509_crt_bundle.bin");
-        if(!file || file.isDirectory()) {
-            syslog("Could not load cert bundle from SPIFFS", 3);
-            bundleLoaded = false;
-        }
-        // Load loadCertBundle into WiFiClientSecure
-        if(file && file.size() > 0) {
-            if(!client->loadCertBundle(file, file.size())){
-                syslog("WiFiClientSecure: could not load cert bundle", 3);
-                bundleLoaded = false;
-            }
-        }
-        file.close();
-      }
-      else {
-        syslog("Unable to create SSL client", 2);
-        unitState = 5;
-        httpsError = true;
-      }
-      if(update_start){
-        startUpdate();
-      }
-      if(update_finish){
-        finishUpdate(false);
-      }
-      if(restore_finish || !spiffsMounted){
-        finishUpdate(true);
-      }
-      if(mqtt_en) setupMqtt();
-      sinceConnCheck = 60000;
-      server.addHandler(new WebRequestHandler());
-      update_autoCheck = true;
-      if(update_autoCheck) {
-        sinceUpdateCheck = 86400000-60000;
-      }
-      if(eid_en) sinceEidUpload = 15*60*900000;
-      syslog("Local IP: " + WiFi.localIP().toString(), 0);
-    }
-    else{
-      syslog("Could not connect to the WiFi network", 2);
-      wifiError = true;
-      wifiSTA = false;
-    }
-  }
-  if(!wifiSTA){
-    syslog("WiFi mode: access point", 1);
-    WiFi.mode(WIFI_AP);
-    WiFi.softAP(apSSID);
-    dnsServer.start(53, "*", WiFi.softAPIP());
-    MDNS.begin("apSSID");
-    server.addHandler(new WebRequestHandler()).setFilter(ON_AP_FILTER);//only when requested from AP
-    syslog("AP set up", 1);
-    unitState = 3;
-  }
+  initWifi();
   scanWifi();
   server.begin();
 }
