@@ -1,5 +1,6 @@
 void setupMqtt() {
   String mqttinfo = "MQTT enabled! Will connect as " + mqtt_id;
+  mqttHostError = false;
   if (mqtt_auth) {
     mqttinfo = mqttinfo + " using authentication, with username " + mqtt_user;
   }
@@ -62,6 +63,7 @@ void setupMqtt() {
         else{
           syslog("MQTT host IP resolving failed", 3);
           mqttHostError = true;
+          if(unitState < 6) unitState = 5;
         } 
       }
       else{
@@ -88,6 +90,7 @@ void connectMqtt() {
         disconnected = true;
         if(mqttWasConnected){
           if(!mqttPaused) syslog("Lost connection to secure MQTT broker", 2);
+          if(unitState < 6) unitState = 5;
         }
         syslog("Trying to connect to secure MQTT broker", 0);
         while(!mqttclientSecure.connected() && mqttretry < 2){
@@ -107,7 +110,10 @@ void connectMqtt() {
         disconnected = true;
         if(mqttWasConnected){
           //reconncount++;
-          if(!mqttPaused) syslog("Lost connection to MQTT broker", 2);
+          if(!mqttPaused){
+            syslog("Lost connection to MQTT broker", 2);
+            if(unitState < 6) unitState = 5;
+          }
         }
         syslog("Trying to connect to MQTT broker", 0);
         while(!mqttclient.connected() && mqttretry < 2){
@@ -125,6 +131,7 @@ void connectMqtt() {
     if(disconnected){
       if(mqttretry < 2){
         syslog("Connected to MQTT broker", 1);
+        if(unitState < 5) unitState = 4;
         if(mqttPaused) mqttPaused = false;
         String mqtt_topic = "plan-d/" + String(apSSID);
         if(mqtt_tls){
@@ -144,6 +151,7 @@ void connectMqtt() {
       else{
         syslog("Failed to connect to MQTT broker", 3);
         mqttClientError = true;
+        if(unitState < 6) unitState = 5;
       }
     }
   }

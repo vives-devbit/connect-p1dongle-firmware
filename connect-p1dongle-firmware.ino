@@ -17,6 +17,7 @@
 #include <Update.h>
 #include "ArduinoJson.h"
 #include <elapsedMillis.h>
+#include "ledControl.h"
 
 unsigned int fw_ver = 105;
 unsigned int onlineVersion, fw_new;
@@ -94,12 +95,6 @@ struct tm mb1_time;  // mbus1 time elements structure
 time_t mb1_timestamp; // mbus1 timestamp
 int prevDay = -1;
 
-//LED state machine vars
-uint8_t DisBuff[2 + 5 * 5 * 3];
-elapsedMillis ledTime;
-boolean ledState = true;
-byte unitState = 0;
-
 //General housekeeping vars
 unsigned int counter, bootcount, refbootcount, reconncount, remotehostcount;
 String resetReason, last_reset, last_reset_verbose;
@@ -132,6 +127,7 @@ void setup(){
   pinMode(TRIGGER, OUTPUT);
   setBuff(0x00, 0xff, 0x00); //red
   M5.dis.displaybuff(DisBuff);
+  unitState = -1;
   Serial.begin(115200);
   HWSERIAL.begin(115200, SERIAL_8N1, 21, 22);
   delay(500);
@@ -143,7 +139,7 @@ void setup(){
   initConfig();
   delay(100);
   restoreConfig();
-
+  initSPIFFS();
   syslog("Digital meter dongle " + String(apSSID) +" V" + String(fw_ver/100.0) + " by plan-d.io and re.alto", 1);
   if(dev_fleet) syslog("Using experimental (development) firmware", 2);
   if(alpha_fleet) syslog("Using pre-release (alpha) firmware", 0);
@@ -172,7 +168,6 @@ void setup(){
 
 void loop(){
   blinkLed();
-  if(!bundleLoaded) restoreSPIFFS();
   if(mqtt_tls){
     mqttclientSecure.loop();
   }
@@ -187,22 +182,31 @@ void loop(){
       }
       
     }
-    //Serial.println(mqttclient.state());
     sinceRebootCheck = 0;
   }
-  if(sinceMeterCheck > 90000){
-    syslog("Meter disconnected", 2);
-    /*Re.alto: nullify aggregate readings*/
-    jsonOutputReadings = "";
-    /*Re.alto end*/
-    meterError = true;
-    sinceMeterCheck = 0;
+  if(trigger_type == 0){
+    if(sinceMeterCheck > 30000){
+      if(!meterError) syslog("Meter disconnected", 2);
+      meterError = true;
+      /*Re.alto: nullify aggregate readings*/
+      jsonOutputReadings = "";
+      /*Re.alto end*/
+      if(wifiSTA && unitState < 7) unitState = 6;
+      else if(!wifiSTA && unitState < 3) unitState = 2;
+      sinceMeterCheck = 0;
+    }
   }
-  if(trigger_type == 1){
+  else if(trigger_type == 1){
     if(sinceTelegramRequest >= trigger_interval *1000){
-      //Serial.println("Asserting request line");
       digitalWrite(TRIGGER, HIGH);
       sinceTelegramRequest = 0;
+    }
+    if(sinceMeterCheck > (trigger_interval *1000) + 30000){
+      syslog("Meter disconnected", 2);
+      meterError = true;
+      if(wifiSTA && unitState < 7) unitState = 6;
+      else if(!wifiSTA && unitState < 3) unitState = 2;
+      sinceMeterCheck = 0;
     }
   }
   if(!wifiSTA){
@@ -216,10 +220,11 @@ void loop(){
       setMeterTime();
       sinceClockCheck = 0;
     }
-    if(mTimeFound && ! meterError) unitState = 2;
-    else unitState = 3;
+    if(mTimeFound && ! meterError) unitState = 0;
+    else unitState = 2;
   }
   else{
+    if(!bundleLoaded) restoreSPIFFS();
     /*Re.alto: upload aggregate readings*/
     if(mqtt_en){
       if(sinceLastUpload >= upload_throttle * 1000){
@@ -247,7 +252,8 @@ void loop(){
       if(eidUpload()) sinceEidUpload = 0;
       else sinceEidUpload = (15*60*900000)-(5*60*1000);
     }
-    if(wifiError || mqttHostError || mqttClientError || httpsError || meterError || eidError || !spiffsMounted) unitState = 5;
+    if(meterError) unitState = 6;
+    else if(wifiError || mqttHostError || mqttClientError || httpsError) unitState = 5;
     else unitState = 4;
     if(reconncount > 15 || remotehostcount > 60){
       last_reset = "Rebooting to try fix connections";

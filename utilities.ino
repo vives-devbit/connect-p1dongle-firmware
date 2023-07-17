@@ -253,36 +253,6 @@ void setReboot(){
   syslog("Rebooting", 2);
 }
 
-void setBuff(uint8_t Rdata, uint8_t Gdata, uint8_t Bdata)
-{
-    //Serial.println("setting LED");
-    DisBuff[0] = 0x05;
-    DisBuff[1] = 0x05;
-    for (int i = 0; i < 25; i++)
-    {
-        DisBuff[2 + i * 3 + 0] = Rdata;
-        DisBuff[2 + i * 3 + 1] = Gdata;
-        DisBuff[2 + i * 3 + 2] = Bdata;
-    }
-}
-
-void blinkLed(){
-  if(ledTime >= 300){
-    //Serial.println(unitState);
-    if(ledState){
-      if(unitState == 1 || unitState == 3 ||unitState == 5) setBuff(0x00, 0x00, 0x00);
-    }
-    else{
-      if(unitState <= 1) setBuff(0xff, 0x00, 0x00);
-      else if(unitState == 2 || unitState == 3) setBuff(0xff, 0x40, 0x00);
-      else setBuff(0x00, 0x00, 0x40);
-    }
-    ledState = !ledState;
-    ledTime = 0;
-    M5.dis.displaybuff(DisBuff);
-  }
-}
-
 double round2(double value) {
    return (int)(value * 100 + 0.05) / 100.0;
 }
