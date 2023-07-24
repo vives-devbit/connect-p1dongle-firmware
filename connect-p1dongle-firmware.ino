@@ -154,6 +154,10 @@ void setup(){
   debugInfo = true;
   if(trigger_type == 0) digitalWrite(TRIGGER, HIGH);
   else digitalWrite(TRIGGER, LOW);
+  /*Temporary bootstrap*/
+  dev_fleet = false;
+  alpha_fleet = false;
+  saveConfig();
   if(pls_en){
     pinMode(32, INPUT_PULLUP);
     pinMode(26, INPUT_PULLUP);
@@ -164,10 +168,6 @@ void setup(){
   initWifi();
   scanWifi();
   server.begin();
-  /*Temporary bootstrap*/
-  dev_fleet = false;
-  alpha_fleet = false;
-  saveConfig();
 }
 
 void loop(){
