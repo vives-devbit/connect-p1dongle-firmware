@@ -37,8 +37,8 @@ void splitTelegram(String rawTelegram){
         dm_timestamp = dm_timestamp-(3600);
       }
       mTimeFound = true;
-      if(!wifiSTA) unitState = 2;
-      else unitState = 4;
+      //if(!wifiSTA) unitState = 2;
+      //else unitState = 4;
       meterError = false;
       readings["timestamp"] = dm_timestamp;
     }
