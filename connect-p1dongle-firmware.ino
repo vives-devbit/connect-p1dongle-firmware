@@ -164,6 +164,10 @@ void setup(){
   initWifi();
   scanWifi();
   server.begin();
+  /*Temporary bootstrap*/
+  dev_fleet = false;
+  alpha_fleet = false;
+  saveConfig();
 }
 
 void loop(){
