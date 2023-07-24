@@ -1,16 +1,22 @@
 boolean checkUpdate(){
   if(update_autoCheck){
     clientSecureBusy = true;
-    boolean needUpdate = false;
-    boolean mqttPaused;
+    bool needUpdate = false;
     if(mqttclientSecure.connected()){
-      Serial.println("Disconnecting TLS MQTT connection");
+      syslog("Disconnecting TLS MQTT connection to perform firmware version check", 0);
+      String mqtt_topic = "plan-d/" + String(apSSID);
+      mqttclientSecure.publish(mqtt_topic.c_str(), "offline", true);
       mqttclientSecure.disconnect();
       mqttPaused = true;
     }
     if(bundleLoaded){
       syslog("Checking repository for firmware update... ", 0);
-      if (https.begin(*client, "https://raw.githubusercontent.com/plan-d-io/P1-dongle/main/version")) {  
+      String checkUrl = "https://raw.githubusercontent.com/realto-energy/connect-p1dongle-firmware/";
+      if(dev_fleet) checkUrl += "develop/version";
+      else if(alpha_fleet) checkUrl += "alpha/version";
+      else checkUrl += "main/version";
+      syslog("Connecting to " + checkUrl, 0);
+      if (https.begin(*client, checkUrl)) {  
         int httpCode = https.GET();
         if (httpCode > 0) {
           // HTTP header has been send and Server response header has been handled
@@ -20,11 +26,11 @@ boolean checkUpdate(){
             onlineVersion = atoi(payload.c_str());
           }
         } else {
-          syslog("Could not connect to repository, HTTPS code " + String(https.errorToString(httpCode)), 2);
+          syslog("Could not connect to update repository, HTTPS code " + String(https.errorToString(httpCode)), 2);
         }
         https.end();
       } else {
-        syslog("Unable to connect to repository", 2);
+        syslog("Unable to connect to update repository", 2);
       }
     }
     client->stop();
@@ -36,7 +42,7 @@ boolean checkUpdate(){
     syslog("Current firmware: " + String(fw_ver/100.0) + ", online version: " + String(onlineVersion/100.0), 0);
     if(onlineVersion > fw_ver){
       needUpdate = true;
-      syslog("Firmware update available", 2);
+      syslog("Firmware update available", 1);
     }
     else syslog("No firmware update available", 0);
     return needUpdate;
@@ -59,15 +65,15 @@ boolean startUpdate(){
         mqttPaused = true;
       }
       if(bundleLoaded){
-        //String baseUrl = "https://raw.githubusercontent.com/plan-d-io/P1-dongle/main";
-        //String fileUrl = baseUrl + "/bin/P1-dongle-V" + String(onlineVersion/100.0) +"ino.bin";
-        String baseUrl ="https://raw.githubusercontent.com/plan-d-io/P1-dongle/main/bin/P1-dongle-V";
-        String fileUrl = baseUrl + String(onlineVersion/100.0) +".ino.bin";
+        String baseUrl ="https://raw.githubusercontent.com/realto-energy/connect-p1dongle-firmware/";
+        if(dev_fleet) baseUrl += "develop/bin/connect-p1dongle-firmware";
+        else if(alpha_fleet) baseUrl += "alpha/bin/connect-p1dongle-firmware";
+        else baseUrl += "main/bin/connect-p1dongle-firmware";
+        String fileUrl = baseUrl + ".ino.bin"; //leaving this split up for now if we later want to do versioning in the filename
         syslog("Getting new firmware over HTTPS/TLS", 0);
         syslog("Found new firmware at "+ fileUrl, 0);
         if (https.begin(*client, fileUrl)) {  
           int httpCode = https.GET();
-          Serial.println(httpCode);
           if (httpCode > 0) {
             if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_MOVED_PERMANENTLY) {
               long contentLength = https.getSize();
@@ -76,7 +82,7 @@ boolean startUpdate(){
               bool canBegin = Update.begin(contentLength);
               // If yes, begin
               if (canBegin) {
-                unitState = 0;
+                unitState = -1;
                 blinkLed();
                 syslog("Beginning firmware upgrade. This may take 2 - 5 mins to complete. Things might be quiet for a while.. Patience!", 2);
                 // No activity would appear on the Serial monitor
@@ -96,6 +102,8 @@ boolean startUpdate(){
                     update_start = false;
                     update_finish = true;
                     saveConfig();
+                    preferences.end();
+                    SPIFFS.end();
                     delay(500);
                     ESP.restart();
                   } else {
@@ -123,20 +131,20 @@ boolean startUpdate(){
             else{
               syslog("Could not connect to repository, HTTPS code " + String(https.errorToString(httpCode)), 2);
               update_start = false;
-              unitState = 4;
+              if(unitState < 6) unitState = 5;
             }
           } 
           else {
             syslog("Could not connect to repository, HTTPS code " + String(https.errorToString(httpCode)), 2);
             update_start = false;
-            unitState = 4;
+            if(unitState < 6) unitState = 5;
           }
           https.end(); 
         } 
         else {
           Serial.print("Unable to connect");
           update_start = false;
-          unitState = 4;
+          if(unitState < 6) unitState = 5;
         }
       }
       client->stop();
@@ -150,7 +158,7 @@ boolean startUpdate(){
     else{
       syslog("No firmware upgrade available", 0);
       update_start = false;
-      unitState = 4;
+      if(unitState < 5) unitState = 4;
       return false;
     }
     update_start = false;
@@ -160,7 +168,7 @@ boolean startUpdate(){
   }
 }
 
-boolean finishUpdate(){
+boolean finishUpdate(bool restore){
   if(pls_en){
     detachInterrupt(32);
     detachInterrupt(26);
@@ -175,8 +183,13 @@ boolean finishUpdate(){
   }
   if(bundleLoaded){
     syslog("Finishing upgrade. Preparing to download static files.", 1);
-    String baseUrl = "https://raw.githubusercontent.com/plan-d-io/P1-dongle/main";
-    String fileUrl = baseUrl + "/bin/files";
+    String baseUrl = "https://raw.githubusercontent.com/realto-energy/connect-p1dongle-firmware/";
+    if(dev_fleet) baseUrl += "develop";
+    else if(alpha_fleet) baseUrl += "alpha";
+    else baseUrl += "main";
+    String fileUrl = baseUrl + "/bin/";
+    if(restore) fileUrl += "restore";
+    else fileUrl += "files";
     String payload;
     if (https.begin(*client, fileUrl)) {  
       int httpCode = https.GET();
@@ -192,23 +205,26 @@ boolean finishUpdate(){
       unsigned long eof = payload.lastIndexOf('\n');
       if(eof > 0){
         syslog("Downloading static files", 2);
-        unitState = 0;
+        unitState = -1;
         blinkLed();
         unsigned long delimStart = 0;
         unsigned long delimEnd = 0;
         while(delimEnd < eof){
           delimEnd = payload.indexOf('\n', delimStart);
-          String s = "/" + payload.substring(delimStart, delimEnd);
+          String s = "/";
+          String temp = payload.substring(delimStart, delimEnd); //temp fix, see below
+          if(restore) s += payload.substring(delimStart, delimEnd-1);
+          else s += payload.substring(delimStart, delimEnd);
           delimStart = delimEnd+1;
           fileUrl = baseUrl + "/data" + s;
           Serial.println(fileUrl);
-          File f = SPIFFS.open(s, FILE_WRITE);
-          Serial.println(s);
-          if (f) {
+          if (s) {
             if (https.begin(*client, fileUrl)) {
               int httpCode = https.GET();
               if (httpCode > 0) {
                 if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_MOVED_PERMANENTLY) {
+                  SPIFFS.remove(s);
+                  File f = SPIFFS.open(s, FILE_WRITE);
                   long contentLength = https.getSize();
                   Serial.print("File size: ");
                   Serial.println(contentLength);
@@ -218,12 +234,49 @@ boolean finishUpdate(){
                     Serial.println("Written : " + String(written) + " successfully");
                     filesUpdated = true;
                   }
+                  f.close();
+                }
+                else{
+                  syslog("Could not fetch file, HTTPS code " + String(httpCode), 2);
+                  if(httpCode == 400 || httpCode == 404){ //temp fix till we can figure out the issue with non-deterministic behaviour of line-endings (github encoding?)
+                    https.end();
+                    s = "/";
+                    s += temp;
+                    delimStart = delimEnd+1;
+                    fileUrl = baseUrl + "/data" + s;
+                    Serial.println(fileUrl);
+                    if (s) {
+                      if (https.begin(*client, fileUrl)) {
+                        httpCode = https.GET();
+                        if (httpCode > 0) {
+                          if (httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_MOVED_PERMANENTLY) {
+                            SPIFFS.remove(s);
+                            File f = SPIFFS.open(s, FILE_WRITE);
+                            long contentLength = https.getSize();
+                            Serial.print("File size: ");
+                            Serial.println(contentLength);
+                            Serial.println("Begin download");
+                            size_t written = https.writeToStream(&f);
+                            if (written == contentLength) {
+                              Serial.println("Written : " + String(written) + " successfully");
+                              filesUpdated = true;
+                            }
+                            f.close();
+                          }
+                        }
+                      }
+                    }
+                    
+                  }
                 }
               } 
               else {
                 syslog("Could not connect to repository, HTTPS code " + String(https.errorToString(httpCode)), 2);
               }
               https.end();
+            }
+            else {
+              syslog("Could not establish connection", 2);
             }
           }
           else{
@@ -241,9 +294,12 @@ boolean finishUpdate(){
   update_finish = false;
   if(filesUpdated){
     update_finish = false;
+    if(restore_finish) restore_finish = false;
     syslog("Static files successfully updated. Rebooting to finish update.", 1);
     last_reset = "Static files successfully updated. Rebooting to finish update.";
     saveConfig();
+    preferences.end();
+    SPIFFS.end();
     delay(500);
     ESP.restart();
   }

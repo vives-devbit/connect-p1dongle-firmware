@@ -1,4 +1,5 @@
 void splitTelegram(String rawTelegram){
+  DynamicJsonDocument readings(1024);
   sinceMeterCheck = 0;
   mTimeFound = false;
   meterError = true;
@@ -26,7 +27,7 @@ void splitTelegram(String rawTelegram){
       dm_time.tm_hour = houri;
       dm_time.tm_min = minutei;
       dm_time.tm_mday = dayi;
-      dm_time.tm_mon = monthi;      // months start from 0, so deduct 1
+      dm_time.tm_mon = monthi - 1;      // months start from 0, so deduct 1
       dm_time.tm_year = yeari - 1900; // years since 1900, so deduct 1900
       dm_timestamp =  mktime(&dm_time);
       if(DST == "S"){
@@ -36,9 +37,10 @@ void splitTelegram(String rawTelegram){
         dm_timestamp = dm_timestamp-(3600);
       }
       mTimeFound = true;
-      if(!wifiSTA) unitState = 2;
-      else unitState = 4;
+      //if(!wifiSTA) unitState = 2;
+      //else unitState = 4;
       meterError = false;
+      readings["timestamp"] = dm_timestamp;
     }
     else{
       //Serial.println(key);
@@ -76,6 +78,8 @@ void splitTelegram(String rawTelegram){
             String valuetext = sub.substring(0, units);
             float value = valuetext.toFloat();
             String unit = sub.substring(units+1);
+            readings[key]["value"] = value;
+            readings[key]["unit"] = unit;
             processMeterValue(i, 0, value, true, unit, dm_timestamp);
           }
           else if(dsmrKeys[i][1] == "5"){
@@ -109,12 +113,17 @@ void splitTelegram(String rawTelegram){
             float value = valuetext.toFloat();
             String unit = sub.substring(units+1);
             if(unit == "m3") unit = "m³";
+            readings[key]["value"] = value;
+            readings[key]["unit"] = unit;
             processMeterValue(i, 0, value, true, unit, mb1_timestamp);
           }
         }
       } 
     }
   }
+  // Send MQTT output in one JSON payload
+  jsonOutputReadings = "";
+  serializeJson(readings, jsonOutputReadings);
   if(!meterError) sumMeterTotals();
 }
 
@@ -129,15 +138,16 @@ void processMeterValue(int dsmrKey, int imeasurement, float fmeasurement, boolea
   else if(dsmrKeys[dsmrKey][0] == "1-0:32.7.0") volt1 = fmeasurement;
   else if(dsmrKeys[dsmrKey][0] == "1-0:52.7.0") volt2 = fmeasurement;
   else if(dsmrKeys[dsmrKey][0] == "1-0:72.7.0") volt3 = fmeasurement;
+  /* Re.alto doesn't need this, so lets exclude it for now
   DynamicJsonDocument doc(1024);
-  doc["entity"] = "utility_meter";
-  doc["sensorId"] = "utility_meter." + dsmrKeys[dsmrKey][3].substring(dsmrKeys[dsmrKey][3].lastIndexOf('/')+1);
+  doc["entity"] = apSSID;
+  //doc["sensorId"] = "utility_meter." + dsmrKeys[dsmrKey][3].substring(dsmrKeys[dsmrKey][3].lastIndexOf('/')+1);
   String friendly_name = String(dsmrKeys[dsmrKey][2]);
   friendly_name.toLowerCase();
   friendly_name = "Utility meter " + friendly_name;
   doc["friendly_name"] = friendly_name;
-  doc["metric"] = dsmrKeys[dsmrKey][4];
-  doc["metricKind"] = dsmrKeys[dsmrKey][5];
+  //doc["metric"] = dsmrKeys[dsmrKey][4];
+  //doc["metricKind"] = dsmrKeys[dsmrKey][5];
   if(floatValue) doc["value"] = fmeasurement;
   else doc["value"] = imeasurement;
   if(unit != "") doc["unit"] = unit;
@@ -146,9 +156,10 @@ void processMeterValue(int dsmrKey, int imeasurement, float fmeasurement, boolea
   serializeJson(doc, jsonOutput);
   if(mqtt_en){
     if(sinceLastUpload >= (upload_throttle * 1000)){
-     pubMqtt(dsmrKeys[dsmrKey][3], jsonOutput, false);
+     pubMqtt("plan-d/" + String(apSSID) + dsmrKeys[dsmrKey][3], jsonOutput, false);
     }
   }
+  */
 }
 
 void sumMeterTotals(){
@@ -162,42 +173,46 @@ void sumMeterTotals(){
     gasConYesterday = totGasCon;
     prevDay = dm_time.tm_mday ;
   }
+  /* Re.alto doesn't need this, so lets exclude it for now
   if(mqtt_en){
     for(int i = 0; i < 3; i++){
       String totalsTopic = "";
       DynamicJsonDocument doc(1024);
-      doc["entity"] = "utility_meter";
-      doc["metric"] = "GridElectricityImport";
-      doc["metricKind"] = "cumulative";
-      doc["unit"] = "kWh";
+      doc["entity"] = apSSID;
+      //doc["metric"] = "GridElectricityImport";
+      //doc["metricKind"] = "cumulative";
       if(i == 0){
         totalsTopic = "total_energy_consumed";
         doc["friendly_name"] = "Utility meter total energy consumed";
         doc["value"] = totCon;
+        doc["unit"] = "kWh";
       }
       else if(i == 1){
         totalsTopic = "total_energy_injected";
-        doc["metric"] = "GridElectricityExport";
+        //doc["metric"] = "GridElectricityExport";
         doc["friendly_name"] = "Utility meter total energy injected";
         doc["value"] = totIn;
+        doc["unit"] = "kWh";
       }
       else{
         totalsTopic = "total_active_power";
-        doc["metric"] = "GridElectricityPower";
+        //doc["metric"] = "GridElectricityPower";
         doc["friendly_name"] = "Utility meter total active power";
         doc["value"] = netPowCon;
-        doc["metricKind"] = "gauge";
+        //doc["metricKind"] = "gauge";
         doc["unit"] = "kW";
       }
       doc["timestamp"] = dm_timestamp;
-      doc["sensorId"] = "utility_meter." + totalsTopic;
-      totalsTopic = "data/devices/utility_meter/" + totalsTopic;
+      //doc["sensorId"] = "utility_meter." + totalsTopic;
+      totalsTopic = "plan-d/" + String(apSSID) + "/data/" + totalsTopic;
       String jsonOutput;
       serializeJson(doc, jsonOutput);
       if(sinceLastUpload >= (upload_throttle*1000)){
        pubMqtt(totalsTopic, jsonOutput, false);
       }
     }
-  }
-  sinceLastUpload = 0;
+    if(sinceLastUpload >= (upload_throttle*1000)){
+      sinceLastUpload = 0;
+    }
+  }*/
 }

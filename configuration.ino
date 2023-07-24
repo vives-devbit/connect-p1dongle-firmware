@@ -1,6 +1,7 @@
 boolean restoreConfig() {
   wifi_ssid = preferences.getString("WIFI_SSID");
-  wifi_password = preferences.getString("WIFI_PASSWD");  
+  wifi_password = preferences.getString("WIFI_PASSWD"); 
+  email = preferences.getString("EMAIL");  
   wifiSTA = preferences.getBool("WIFI_STA");
   mqtt_en = preferences.getBool("MQTT_EN");
   mqtt_tls = preferences.getBool("MQTT_TLS");
@@ -13,18 +14,23 @@ boolean restoreConfig() {
   upload_throttle = preferences.getULong("UPL_THROTTLE");
   update_auto = preferences.getBool("UPD_AUTO");
   update_autoCheck = preferences.getBool("UPD_AUTOCHK");
+  dev_fleet = preferences.getBool("BETA_FLT");
+  alpha_fleet = preferences.getBool("ALPHA_FLT");
   fw_new = preferences.getUInt("FW_NEW");
   update_start = preferences.getBool("UPD_START");
   update_finish = preferences.getBool("UPD_FINISH");
+  restore_finish = preferences.getBool("RST_FINISH");
   eid_en = preferences.getBool("EID_EN");
   eid_webhook = preferences.getString("EID_HOOK");
   ha_en = preferences.getBool("HA_EN");
   counter = preferences.getUInt("counter", 0);
   bootcount = preferences.getUInt("reboots", 0);
+  refbootcount = preferences.getUInt("refboots", 0);
   last_reset = preferences.getString("LAST_RESET");
   dsmrVersion = preferences.getUInt("DM_DSMRV");
   trigger_interval = preferences.getUInt("TRG_INT");
   trigger_type = preferences.getUInt("TRG_TYPE");
+  reinit_spiffs = preferences.getBool("RINT_SPIFFS");
   pls_en = preferences.getBool("PLS_EN");
   pls_mind1 = preferences.getInt("PLS_MIND1");
   pls_mind2 = preferences.getInt("PLS_MIND2");
@@ -36,6 +42,22 @@ boolean restoreConfig() {
   pls_unit2 = preferences.getString("PLS_UNT2");
   pls_off1 = preferences.getUInt("PLS_OFF1");
   pls_off2 = preferences.getUInt("PLS_OFF2");
+  if(preferences.getBool("DM_AVDEM") == true) dmAvDem = "1";
+  else dmAvDem = "0";
+  if(preferences.getBool("DM_MAXDEMM") == true) dmMaxDemM = "1";
+  else dmMaxDemM = "0";
+  if(preferences.getBool("DM_POWIN") == true) dmPowIn = "1";
+  else dmPowIn = "0";
+  if(preferences.getBool("DM_POWCON") == true) dmPowCon = "1";
+  else dmPowCon = "0";
+  if(preferences.getBool("DM_TOTCONT1") == true) dmTotCont1 = "1";
+  else dmTotCont1 = "0";
+  if(preferences.getBool("DM_TOTCONT2") == true) dmTotCont2 = "1";
+  else dmTotCont2 = "0";
+  if(preferences.getBool("DM_TOTINT1") == true) dmTotInt1 = "1";
+  else dmTotInt1 = "0";
+  if(preferences.getBool("DM_TOTINT2") == true) dmTotInt2 = "1";
+  else dmTotInt2 = "0";
   if(preferences.getBool("DM_ACTTAR") == true) dmActiveTariff = "1";
   else dmActiveTariff = "0";
   if(preferences.getBool("DM_VOLT1") == true) dmVoltagel1 = "1";
@@ -62,8 +84,11 @@ boolean restoreConfig() {
 }
 
 boolean saveConfig() {
+  preferences.end();
+  preferences.begin("cofy-config", false);
   preferences.putString("WIFI_SSID", wifi_ssid);
   preferences.putString("WIFI_PASSWD", wifi_password);
+  preferences.putString("EMAIL", email);
   if(wifiSave) preferences.putBool("WIFI_STA", true);
   else preferences.putBool("WIFI_STA", wifiSTA);
   preferences.putBool("MQTT_EN", mqttSave);
@@ -77,9 +102,12 @@ boolean saveConfig() {
   preferences.putULong("UPL_THROTTLE", upload_throttle);
   preferences.putBool("UPD_AUTO", update_auto);
   preferences.putBool("UPD_AUTOCHK", update_autoCheck);
+  preferences.putBool("ALPHA_FLT", alpha_fleet);
+  preferences.putBool("BETA_FLT", dev_fleet);
   preferences.putUInt("FW_NEW", onlineVersion);
   preferences.putBool("UPD_START", update_start);
   preferences.putBool("UPD_FINISH", update_finish);
+  preferences.putBool("RST_FINISH", restore_finish);
   preferences.putUInt("counter", counter);
   preferences.putUInt("reboots", bootcount);
   preferences.putBool("EID_EN", eidSave);
@@ -89,6 +117,23 @@ boolean saveConfig() {
   preferences.putUInt("DM_DSMRV", dsmrVersion);
   preferences.putUInt("TRG_INT", trigger_interval);
   preferences.putUInt("TRG_TYPE", trigger_type);
+  preferences.putBool("RINT_SPIFFS", reinit_spiffs);
+  if (dmAvDem == "1") preferences.putBool("DM_AVDEM", true);
+  else preferences.putBool("DM_AVDEM", false);
+  if (dmMaxDemM == "1") preferences.putBool("DM_MAXDEMM", true);
+  else preferences.putBool("DM_MAXDEMM", false);
+  if (dmPowIn == "1") preferences.putBool("DM_POWIN", true);
+  else preferences.putBool("DM_POWIN", false);
+  if (dmPowCon == "1") preferences.putBool("DM_POWCON", true);
+  else preferences.putBool("DM_POWCON", false);
+  if (dmTotCont1 == "1") preferences.putBool("DM_TOTCONT1", true);
+  else preferences.putBool("DM_TOTCONT1", false);
+  if (dmTotCont2 == "1") preferences.putBool("DM_TOTCONT2", true);
+  else preferences.putBool("DM_TOTCONT2", false);
+  if (dmTotInt1 == "1") preferences.putBool("DM_TOTINT1", true);
+  else preferences.putBool("DM_TOTINT1", false);
+  if (dmTotInt2 == "1") preferences.putBool("DM_TOTINT2", true);
+  else preferences.putBool("DM_TOTINT2", false);
   if (dmActiveTariff == "1") preferences.putBool("DM_ACTTAR", true);
   else preferences.putBool("DM_ACTTAR", false);
   if (dmVoltagel1 == "1") preferences.putBool("DM_VOLT1", true);
@@ -107,27 +152,40 @@ boolean saveConfig() {
   else preferences.putBool("DM_GAS", false);
   if (dmText == "1") preferences.putBool("DM_TXT", true);
   else preferences.putBool("DM_TXT", false);
+  preferences.end();
+  preferences.begin("cofy-config", true);
   return true;
 }
 
 boolean saveBoots(){
+  preferences.end();
+  preferences.begin("cofy-config", false);
   preferences.putUInt("reboots", bootcount);
+  preferences.putUInt("refboots", bootcount);
+  preferences.end();
+  preferences.begin("cofy-config", true);
   return true;
 }
 
 boolean resetConfig() {
+  preferences.end();
+  preferences.begin("cofy-config", false);
   if(resetAll || resetWifi){
     Serial.print("Executing config reset");
     Serial.print("Executing wifi reset");
     preferences.remove("WIFI_SSID");
     preferences.remove("WIFI_PASSWD");
+    preferences.remove("EMAIL");
     preferences.remove("MQTT_HOST");
     preferences.putBool("WIFI_STA", false);
     preferences.putBool("UPD_AUTO", true);
     preferences.putBool("UPD_AUTOCHK", true);
+    preferences.putBool("HA_EN", false);
+    preferences.putULong("UPL_THROTTLE", 60);
     preferences.putString("LAST_RESET", "Restarting for config reset");
     preferences.end();
     syslog("Restarting for config reset", 2);
+    SPIFFS.end();
     delay(500);
     ESP.restart();
     return true;
@@ -135,23 +193,39 @@ boolean resetConfig() {
 }
 
 boolean initConfig() {
+  preferences.end();
+  preferences.begin("cofy-config", false);
   String tempMQTT = preferences.getString("MQTT_HOST");
   if(tempMQTT == ""){
-    preferences.putBool("MQTT_EN", false);
-    preferences.putString("MQTT_HOST", "10.42.0.1");
-    mqtt_host = "10.42.0.1";
-    preferences.putUInt("MQTT_PORT", 1883);
-    mqtt_port = 1883;
+    preferences.putBool("MQTT_EN", true);
+    mqtt_en = true;
+    preferences.putString("MQTT_HOST", "realto.s2.eu.hivemq.cloud");
+    mqtt_host = "realto.s2.eu.hivemq.cloud";
+    preferences.putUInt("MQTT_PORT", 8883);
+    mqtt_port = 8883;
+    preferences.putBool("MQTT_TLS", true);
+    mqtt_tls = true;
+    preferences.putBool("MQTT_AUTH", true);
+    mqtt_auth = true;
+    preferences.putString("MQTT_USER", "realto-mqtt-client");
+    mqtt_user = "realto-mqtt-client";
+    preferences.putString("MQTT_PASS", "FCACq.w_CwLgZgxg_9oz");
+    mqtt_pass = "FCACq.w_CwLgZgxg_9oz";
+    preferences.putULong("UPL_THROTTLE", 60);
+    upload_throttle = 60;
     tempMQTT = preferences.getString("MQTT_ID");
     if(tempMQTT == ""){
       preferences.putString("MQTT_ID", apSSID);
       mqtt_id = apSSID;
-      preferences.putBool("HA_EN", true);
-      ha_en = true;
+      preferences.putBool("HA_EN", false);
+      ha_en = false;
     }
     preferences.putBool("UPD_AUTO", true); 
     preferences.putBool("UPD_AUTOCHK", true);
+    //preferences.putBool("BETA_FLT", true);
     preferences.putUInt("DM_DSMRV", 0);
+    preferences.putBool("DM_AVDEM", true);
+    preferences.putBool("DM_MAXDEMM", true);
     preferences.putBool("DM_ACTTAR", true);
     preferences.putBool("DM_VOLT1", true);
     preferences.putBool("DM_VOLT2", false);
@@ -178,5 +252,7 @@ boolean initConfig() {
     preferences.putUInt("MQTT_PORT", 1883);
     mqtt_port = 1883;
   }
+  preferences.end();
+  preferences.begin("cofy-config", true);
   return true;
 }

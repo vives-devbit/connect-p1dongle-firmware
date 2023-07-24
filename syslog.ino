@@ -18,7 +18,7 @@ void syslog(String msg, int level){
     doc["entity"] = apSSID;
     doc["sensorId"] = "syslog";
     doc["timestamp"] = dtimestamp;
-    String dtopic = "sys/devices/" + String(apSSID) + "/syslog";
+    String dtopic = "plan-d/" + String(apSSID) + "/sys/syslog"; //JSI: Changed to plan-d/P1XXXXXX/sys/syslog
     String jsonOutput;
     serializeJson(doc, jsonOutput);
     pubMqtt(dtopic, jsonOutput, true);
@@ -32,55 +32,4 @@ void syslog(String msg, int level){
     logmsg = logmsg + "\r\n";
     appendFile(SPIFFS, "/syslog.txt", logmsg.c_str());
   }
-}
-
-void appendFile(fs::FS &fs, const char * path, const char * message){
-    //Serial.printf("Appending to file: %s\r\n", path);
-
-    File file = fs.open(path, FILE_APPEND);
-    if(!file){
-        //Serial.println("- failed to open file for appending");
-        return;
-    }
-    if(file.print(message)){
-        //Serial.println("- message appended");
-    } else {
-        //Serial.println("- append failed");
-    }
-    file.close();
-}
-
-void renameFile(fs::FS &fs, const char * path1, const char * path2){
-    //Serial.printf("Renaming file %s to %s\r\n", path1, path2);
-    if (fs.rename(path1, path2)) {
-        //Serial.println("- file renamed");
-    } else {
-        //Serial.println("- rename failed");
-    }
-}
-
-void deleteFile(fs::FS &fs, const char * path){
-    //Serial.printf("Deleting file: %s\r\n", path);
-    if(fs.remove(path)){
-        //Serial.println("- file deleted");
-    } else {
-        //Serial.println("- delete failed");
-    }
-}
-
-int sizeFile(fs::FS &fs, const char * path){
-    //Serial.printf("Getting size of file: %s\r\n", path);
-    int fileSize = 0;
-    File file = fs.open(path);
-    if(!file || file.isDirectory()){
-        //Serial.println("- failed to open file for reading");
-        return fileSize;
-    }
-    //Serial.println("- read from file:");
-    //Serial.print("File size is ");
-    fileSize = file.size();
-    //Serial.print(file.size());
-    //Serial.println(" bytes");
-    file.close();
-    return fileSize;
 }

@@ -1,24 +1,38 @@
 void setupMqtt() {
   String mqttinfo = "MQTT enabled! Will connect as " + mqtt_id;
+  mqttHostError = false;
   if (mqtt_auth) {
     mqttinfo = mqttinfo + " using authentication, with username " + mqtt_user;
   }
-  syslog(mqttinfo, 0);
-  if(mqtt_tls) mqttclientSecure.setClient(*client);
-  else mqttclient.setClient(wificlient);
+  syslog(mqttinfo, 1);
+  if(mqtt_tls){
+    mqttclientSecure.setClient(*client);
+    if(upload_throttle > 10){
+      mqttclientSecure.setKeepAlive(upload_throttle*2).setSocketTimeout(upload_throttle*2);
+    }
+  }
+  else {
+    mqttclient.setClient(wificlient);
+    if(upload_throttle > 10){
+      mqttclient.setKeepAlive(upload_throttle*2).setSocketTimeout(upload_throttle*2);
+    }
+  }
   /*Set broker location*/
   IPAddress addr;
   if (mqtt_host.length() > 0) {
     if (addr.fromString(mqtt_host)) {
       syslog("MQTT host has IP address " + mqtt_host, 0);
-      if(mqtt_tls) mqttclientSecure.setServer(addr, mqtt_port);
+      if(mqtt_tls){
+        mqttclientSecure.setServer(addr, mqtt_port);
+        mqttclientSecure.setCallback(callback);
+      }
       else{
         mqttclient.setServer(addr, mqtt_port);
         mqttclient.setCallback(callback);
       }
     }
     else {
-      syslog("Trying to resolve MQTT host " + mqtt_host + " to IP address", 0);
+      syslog("Trying to resolve MQTT host " + mqtt_host + " to IP address", 1);
       int dotLoc = mqtt_host.lastIndexOf('.');
       String tld = mqtt_host.substring(dotLoc+1);
       if(dotLoc == -1 || tld == "local"){
@@ -36,7 +50,7 @@ void setupMqtt() {
           delay(250);
         }
         if(mdnsretry < 10){
-          syslog("MQTT host has IP address " + addr.toString(), 0);
+          syslog("MQTT host has IP address " + addr.toString(), 1);
           if(mqtt_tls) {
             mqttclientSecure.setServer(addr, mqtt_port);
             mqttclientSecure.setCallback(callback);
@@ -49,6 +63,7 @@ void setupMqtt() {
         else{
           syslog("MQTT host IP resolving failed", 3);
           mqttHostError = true;
+          if(unitState < 6) unitState = 5;
         } 
       }
       else{
@@ -73,14 +88,18 @@ void connectMqtt() {
     if(mqtt_tls && !clientSecureBusy){
       if(!mqttclientSecure.connected()) {
         disconnected = true;
-        if(mqttWasConnected) syslog("Lost connection to secure MQTT broker", 2);
+        if(mqttWasConnected){
+          if(!mqttPaused) syslog("Lost connection to secure MQTT broker", 2);
+          if(unitState < 6) unitState = 5;
+        }
         syslog("Trying to connect to secure MQTT broker", 0);
         while(!mqttclientSecure.connected() && mqttretry < 2){
           Serial.print("...");
-          if (mqtt_auth) mqttclientSecure.connect(mqtt_id.c_str(), mqtt_user.c_str(), mqtt_pass.c_str());
+          String mqtt_topic = "plan-d/" + String(apSSID);
+          if (mqtt_auth) mqttclientSecure.connect(mqtt_id.c_str(), mqtt_user.c_str(), mqtt_pass.c_str(), mqtt_topic.c_str(), 1, true, "offline");
           else mqttclientSecure.connect(mqtt_id.c_str());
           mqttretry++;
-          reconncount++;
+          remotehostcount++;
           delay(250);
         }
         Serial.println("");
@@ -90,14 +109,18 @@ void connectMqtt() {
       if(!mqttclient.connected()) {
         disconnected = true;
         if(mqttWasConnected){
-          reconncount++;
-          syslog("Lost connection to MQTT broker", 2);
+          //reconncount++;
+          if(!mqttPaused){
+            syslog("Lost connection to MQTT broker", 2);
+            if(unitState < 6) unitState = 5;
+          }
         }
         syslog("Trying to connect to MQTT broker", 0);
         while(!mqttclient.connected() && mqttretry < 2){
           Serial.print("...");
-          if (mqtt_auth) mqttclient.connect(mqtt_id.c_str(), mqtt_user.c_str(), mqtt_pass.c_str(), "data/devices/utility_meter", 1, true, "offline");
-          else mqttclient.connect(mqtt_id.c_str(), "data/devices/utility_meter", 1, true, "offline");
+          String mqtt_topic = "plan-d/" + String(apSSID);
+          if (mqtt_auth) mqttclient.connect(mqtt_id.c_str(), mqtt_user.c_str(), mqtt_pass.c_str(), mqtt_topic.c_str(), 1, true, "offline");
+          else mqttclient.connect(mqtt_id.c_str(), mqtt_topic.c_str(), 1, true, "offline");
           mqttretry++;
           reconncount++;
           delay(250);
@@ -107,14 +130,19 @@ void connectMqtt() {
     }
     if(disconnected){
       if(mqttretry < 2){
-        syslog("Connected to MQTT broker", 0);
+        syslog("Connected to MQTT broker", 1);
+        if(unitState < 5) unitState = 4;
+        if(mqttPaused) mqttPaused = false;
+        String mqtt_topic = "plan-d/" + String(apSSID);
         if(mqtt_tls){
-          mqttclientSecure.publish("data/devices/utility_meter", "online", true);
-          mqttclientSecure.subscribe("set/devices/utility_meter/reboot");
+          mqttclientSecure.publish(mqtt_topic.c_str(), "online", true);
+          mqtt_topic += "/set/reboot";
+          mqttclientSecure.subscribe(mqtt_topic.c_str());
         }
         else{
-          mqttclient.publish("data/devices/utility_meter", "online", true);
-          mqttclient.subscribe("set/devices/utility_meter/reboot");
+          mqttclient.publish(mqtt_topic.c_str(), "online", true);
+          mqtt_topic += "/set/reboot";
+          mqttclient.subscribe(mqtt_topic.c_str());
         }
         mqttClientError = false;
         mqttWasConnected = true;
@@ -123,6 +151,7 @@ void connectMqtt() {
       else{
         syslog("Failed to connect to MQTT broker", 3);
         mqttClientError = true;
+        if(unitState < 6) unitState = 5;
       }
     }
   }
@@ -333,7 +362,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
   for (int i = 0; i < length; i++) {
     messageTemp += (char)payload[i];
   }
-  if (String(topic) == "set/devices/utility_meter/reboot") {
+  if (String(topic) == "plan-d/" + String(apSSID) + "/set/reboot") {
     StaticJsonDocument<200> doc;
     deserializeJson(doc, messageTemp);
     if(doc["value"] == "true"){

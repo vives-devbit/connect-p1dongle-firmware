@@ -21,6 +21,15 @@ String getConfig() {
   return output;
 }
 
+String getEmail() {
+  StaticJsonDocument<100> emailJson;
+  emailJson["innerValues"]["email"]["value"] = email;
+  String output;
+  serializeJson(emailJson, output);
+  return output;
+}
+
+
 String getIndexData() {
   StaticJsonDocument<840> indexData;
   String hostValue = "N/A";
@@ -42,6 +51,10 @@ String getIndexData() {
   indexData["innerHTML"]["gasConToday"]["value"] = hostValue;
   if(mTimeFound) hostValue = String(totGasCon) + " m³";
   indexData["innerHTML"]["totGasCon"]["value"] = hostValue;
+  if(mTimeFound) hostValue = String(avgDem) + " kW";
+  indexData["innerHTML"]["dmAvDem"]["value"] = hostValue;
+  if(mTimeFound) hostValue = String(maxDemM) + " kW";
+  indexData["innerHTML"]["dmMaxDemM"]["value"] = hostValue;
   String output;
   serializeJson(indexData, output);
   return output;
@@ -50,7 +63,7 @@ String getIndexData() {
 String getIndexStatic() {
   StaticJsonDocument<840> indexStatic;
   indexStatic["innerHTML"]["HostValue"]["value"] = apSSID; 
-  indexStatic["innerHTML"]["footer"]["value"] = "Digital meter dongle V" + String(fw_ver/100.0) + " by plan-d.io"; 
+  indexStatic["innerHTML"]["footer"]["value"] = "Digital meter dongle V" + String(fw_ver/100.0) + " by plan-d.io and re.alto"; 
   if(wifiSTA) indexStatic["innerTitles"]["WifiStrength"]["value"] = "Wifi connected";
   else indexStatic["innerTitles"]["WifiStrength"]["value"] = "Wifi not connected/configured";
   if(mqtt_en){
@@ -68,23 +81,39 @@ String getIndexStatic() {
 }
 
 String getUnit() {
-  StaticJsonDocument<128> unitData;
+  StaticJsonDocument<256> unitData;
   unitData["innerChecks"]["update_auto"]["value"] = update_auto;
   unitData["innerChecks"]["update_autoCheck"]["value"] = update_autoCheck;
+  unitData["innerChecks"]["alpha_fleet"]["value"] = alpha_fleet;
+  unitData["innerChecks"]["beta_fleet"]["value"] = dev_fleet;
   String output;
   serializeJson(unitData, output);
   return output;
 }
 
 String getDm() {
+  //Note to self: for the love of God please refactor this
   StaticJsonDocument<840> dmData;
+  dmData["innerChecks"]["dmActPow"]["value"] = true;
+  dmData["innerChecks"]["dmTotCon"]["value"] = true;
+  dmData["innerChecks"]["dmTotIn"]["value"] = true;
+  if(dmAvDem == "1") dmData["innerChecks"]["dmAvDem"]["value"] = true;
+  else dmData["innerChecks"]["dmAvDem"]["value"] = false;
+  if(dmMaxDemM == "1") dmData["innerChecks"]["dmMaxDemM"]["value"] = true;
+  else dmData["innerChecks"]["dmMaxDemM"]["value"] = false;
   if(dsmrVersion == 0) dmData["innerValues"]["dsmrVersion"]["value"] = "DSMR P1 V5.0.2 (Fluvius BE)";
-  dmData["innerChecks"]["dmPowCon"]["value"] = true;
-  dmData["innerChecks"]["dmPowIn"]["value"] = true;
-  dmData["innerChecks"]["dmTotConDay"]["value"] = true;
-  dmData["innerChecks"]["dmTotConNight"]["value"] = true;
-  dmData["innerChecks"]["dmTotInDay"]["value"] = true;
-  dmData["innerChecks"]["dmTotInNight"]["value"] = true;
+  if(dmPowCon == "1") dmData["innerChecks"]["dmPowCon"]["value"] = true;
+  else dmData["innerChecks"]["dmPowCon"]["value"] = false;
+  if(dmPowIn == "1") dmData["innerChecks"]["dmPowIn"]["value"] = true;
+  else dmData["innerChecks"]["dmPowIn"]["value"] = false;
+  if(dmTotCont1 == "1") dmData["innerChecks"]["dmTotCon1"]["value"] = true;
+  else dmData["innerChecks"]["dmTotCon1"]["value"] = false;
+  if(dmTotCont2 == "1") dmData["innerChecks"]["dmTotCon2"]["value"] = true;
+  else dmData["innerChecks"]["dmTotCon2"]["value"] = false;
+  if(dmTotInt1 == "1") dmData["innerChecks"]["dmTotInt1"]["value"] = true;
+  else dmData["innerChecks"]["dmTotInt1"]["value"] = false;
+  if(dmTotInt2 == "1") dmData["innerChecks"]["dmTotInt2"]["value"] = true;
+  else dmData["innerChecks"]["dmTotInt2"]["value"] = false;
   if(dmActiveTariff == "1") dmData["innerChecks"]["dmActiveTariff"]["value"] = true;
   else dmData["innerChecks"]["dmActiveTariff"]["value"] = false;
   if(dmVoltagel1 == "1") dmData["innerChecks"]["dmVoltagel1"]["value"] = true;

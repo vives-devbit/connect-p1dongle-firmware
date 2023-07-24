@@ -32,7 +32,7 @@ void getHeapDebug(){
 void pushDebugValues(){
   time_t now;
   unsigned long dtimestamp = time(&now);
-  for(int i = 0; i < 8; i++){
+  for(int i = 0; i < 10; i++){
     String chanName = "";
     String dtopic = "";
     DynamicJsonDocument doc(1024);
@@ -79,10 +79,22 @@ void pushDebugValues(){
       doc["friendly_name"] = "Firmware";
       doc["value"] =  fw_ver/100.0;
     }
+    else if(i == 8){
+      chanName = "release_channel";
+      doc["friendly_name"] = "Release channel";
+      if(alpha_fleet) doc["value"] = "alpha";
+      else if(dev_fleet) doc["value"] = "development";
+      else doc["value"] = "main";
+    }
+    else if(i == 9){
+      chanName = "email";
+      doc["friendly_name"] = "Email";
+      doc["value"] = email;
+    }
     doc["entity"] = apSSID;
     doc["sensorId"] = chanName;
     doc["timestamp"] = dtimestamp;
-    dtopic = "sys/devices/" + String(apSSID) + "/" + chanName;
+    dtopic = "plan-d/" + String(apSSID) + "/sys/" + chanName; //JSI: Changed to plan-d/P1XXXXXX/sys/#
     String jsonOutput;
     serializeJson(doc, jsonOutput);
     if(mqtt_en){
