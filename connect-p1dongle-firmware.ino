@@ -1,4 +1,6 @@
 #include "rom/rtc.h"
+#include <esp_int_wdt.h>
+#include <esp_task_wdt.h>
 #include "M5Atom.h"
 #include <WiFi.h>
 #include <HTTPClient.h>
@@ -19,7 +21,7 @@
 #include <elapsedMillis.h>
 #include "ledControl.h"
 
-unsigned int fw_ver = 106;
+unsigned int fw_ver = 107;
 unsigned int onlineVersion, fw_new;
 DNSServer dnsServer;
 AsyncWebServer server(80);
@@ -96,7 +98,7 @@ time_t mb1_timestamp; // mbus1 timestamp
 int prevDay = -1;
 
 //General housekeeping vars
-unsigned int counter, bootcount, refbootcount, reconncount, remotehostcount;
+unsigned int counter, bootcount, refbootcount, reconncount, remotehostcount, wificheckcount;
 String resetReason, last_reset, last_reset_verbose;
 float freeHeap, minFreeHeap, maxAllocHeap;
 Preferences preferences;  
@@ -178,7 +180,8 @@ void loop(){
   if(sinceRebootCheck > 2000){
     if(rebootInit){
       if(!clientSecureBusy){
-        ESP.restart();
+        forcedReset();
+        //ESP.restart();
       }
       
     }
@@ -214,7 +217,9 @@ void loop(){
     if(!timeSet) setMeterTime();
     if(sinceWifiCheck >= 600000){
       if(scanWifi()) rebootInit = true;
+      else wificheckcount++;
       sinceWifiCheck = 0;
+      if(wificheckcount > 10) forcedReset();
     }
     if(sinceClockCheck >= 3600){
       setMeterTime();
