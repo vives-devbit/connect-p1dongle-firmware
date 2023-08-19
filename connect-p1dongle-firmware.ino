@@ -179,10 +179,10 @@ void loop(){
   if(wifiScan) scanWifi();
   if(sinceRebootCheck > 2000){
     if(rebootInit){
-      if(!clientSecureBusy){
+      //if(!clientSecureBusy){
         forcedReset();
         //ESP.restart();
-      }
+      //}
       
     }
     sinceRebootCheck = 0;
