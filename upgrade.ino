@@ -101,6 +101,7 @@ boolean startUpdate(){
                     fw_ver = onlineVersion;
                     update_start = false;
                     update_finish = true;
+                    clientSecureBusy = false;
                     saveConfig();
                     preferences.end();
                     SPIFFS.end();

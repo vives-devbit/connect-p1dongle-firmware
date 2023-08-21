@@ -217,7 +217,8 @@ void WebRequestHandler::handleRequest(AsyncWebServerRequest *request)
     last_reset = "Reboot requested by user from webmin";
     if(saveConfig()){
       syslog("Reboot requested by user from webmin", 2);
-      setReboot();
+      forcedReset();
+      //setReboot();
       request->send(SPIFFS, "/reboot.html", "text/html");
     }
     else request->send(SPIFFS, "/index.html", "text/html");

@@ -255,6 +255,15 @@ void setReboot(){
   syslog("Rebooting", 2);
 }
 
+void forcedReset(){
+// use the watchdog timer to do a hard restart
+// It sets the wdt to 1 second, adds the current process and then starts an
+// infinite loop.
+  esp_task_wdt_init(1, true);
+  esp_task_wdt_add(NULL);
+  while(true);  // wait for watchdog timer to be triggered
+}
+
 double round2(double value) {
    return (int)(value * 100 + 0.05) / 100.0;
 }
