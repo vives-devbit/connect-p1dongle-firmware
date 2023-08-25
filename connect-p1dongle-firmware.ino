@@ -21,6 +21,8 @@
 #include <elapsedMillis.h>
 #include "ledControl.h"
 
+#include "./src/syslog/Statistic.h"
+
 unsigned int fw_ver = 107;
 unsigned int onlineVersion, fw_new;
 DNSServer dnsServer;
@@ -77,7 +79,7 @@ void IRAM_ATTR pulseCounter2() {
 }
 
 //Global timing vars
-elapsedMillis sinceConnCheck, sinceUpdateCheck, sinceClockCheck, sinceLastUpload, sinceEidUpload, sinceLastWebRequest, sinceRebootCheck, sinceMeterCheck, sinceWifiCheck, sinceTelegramRequest;
+elapsedMillis sinceConnCheck, sinceUpdateCheck, sinceClockCheck, sinceLastUpload, sinceEidUpload, sinceLastWebRequest, sinceRebootCheck, sinceMeterCheck, sinceWifiCheck, sinceTelegramRequest, sinceGatherStatistics;
 
 //Re.alto vars
 String jsonOutputReadings;
@@ -122,6 +124,8 @@ boolean update_autoCheck, update_auto, updateAvailable, update_start, update_fin
 unsigned int mqtt_port;
 unsigned long upload_throttle;
 String eid_webhook;
+
+Xenn::Statistic rssiStatistic;
 
 void setup(){
   M5.begin(true, false, true);
@@ -177,6 +181,13 @@ void loop(){
     mqttclient.loop();
   }
   if(wifiScan) scanWifi();
+
+  // gathering statistics every 5 seconds
+  if(sinceGatherStatistics > 5000){ 
+    rssiStatistic.add(WiFi.RSSI());
+    sinceGatherStatistics = 0;
+  }
+
   if(sinceRebootCheck > 2000){
     if(rebootInit){
       //if(!clientSecureBusy){
