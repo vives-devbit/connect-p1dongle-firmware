@@ -173,6 +173,7 @@ bool pubMqtt(String topic, String payload, boolean retain){
       }
     }
   }
+  return false;
 }
 
 void haAutoDiscovery(boolean eraseMeter){
