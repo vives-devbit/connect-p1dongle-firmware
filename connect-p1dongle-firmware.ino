@@ -22,6 +22,7 @@
 #include "ledControl.h"
 
 #include "./src/syslog/Statistic.h"
+#include <queue>
 
 unsigned int fw_ver = 107;
 unsigned int onlineVersion, fw_new;
@@ -37,6 +38,14 @@ bool clientSecureBusy, mqttPaused;
 
 #define HWSERIAL Serial1 //Use hardware UART for communication with digital meter
 #define TRIGGER 25 //Pin to trigger meter telegram request
+
+struct SyslogEntry {
+  std::string msg;
+  unsigned long timestamp;
+};
+
+std::queue<SyslogEntry> syslogBuffer;
+static const size_t syslogBufferSize = 50;
 
 //Data structure for pulse counters
 struct pulse {
@@ -181,6 +190,8 @@ void loop(){
     mqttclient.loop();
   }
   if(wifiScan) scanWifi();
+
+  proccessSyslogBuffer();
 
   // gathering statistics every 5 seconds
   if(sinceGatherStatistics > 5000){ 
