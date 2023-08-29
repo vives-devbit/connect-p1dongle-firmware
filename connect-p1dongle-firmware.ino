@@ -168,7 +168,6 @@ void setup(){
   }
   delay(100);
   initWifi();
-  scanWifi();
   server.begin();
 }
 
