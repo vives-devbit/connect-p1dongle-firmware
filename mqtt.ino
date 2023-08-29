@@ -160,16 +160,16 @@ void connectMqtt() {
   }
 }
 
-void pubMqtt(String topic, String payload, boolean retain){
+bool pubMqtt(String topic, String payload, boolean retain){
   if(mqtt_en && !mqttClientError && !clientSecureBusy){
     if(mqtt_tls){
       if(mqttclientSecure.connected()){
-        mqttclientSecure.publish(topic.c_str(), payload.c_str(), retain);
+        return mqttclientSecure.publish(topic.c_str(), payload.c_str(), retain);
       }
     }
     else{
       if(mqttclient.connected()){
-        mqttclient.publish(topic.c_str(), payload.c_str(), retain);
+        return mqttclient.publish(topic.c_str(), payload.c_str(), retain);
       }
     }
   }
