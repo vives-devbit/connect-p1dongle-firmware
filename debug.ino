@@ -32,7 +32,7 @@ void getHeapDebug(){
 void pushDebugValues(){
   time_t now;
   unsigned long dtimestamp = time(&now);
-  for(int i = 0; i < 10; i++){
+  for(int i = 0; i < 11; i++){
     String chanName = "";
     String dtopic = "";
     DynamicJsonDocument doc(1024);
@@ -91,6 +91,16 @@ void pushDebugValues(){
       doc["friendly_name"] = "Email";
       doc["value"] = email;
     }
+    else if(i == 10){
+      chanName = "rssi";
+      doc["friendly_name"] = "Wifi signal strength";
+      doc["unit_of_measurement"] = "dBm";
+      doc["value"] = round(rssiStatistic.avg() * 100.0) / 100.0;
+      doc["min"] = round(rssiStatistic.min() * 100.0) / 100.0;
+      doc["max"] = round(rssiStatistic.max() * 100.0) / 100.0;
+      doc["count"] = rssiStatistic.count();
+      rssiStatistic.reset();
+    }
     doc["entity"] = apSSID;
     doc["sensorId"] = chanName;
     doc["timestamp"] = dtimestamp;
@@ -103,4 +113,14 @@ void pushDebugValues(){
       }
     }
   }
+}
+
+elapsedMillis sinceGatherStatistics;
+
+void gatherStatistics() {
+  // gathering statistics every 5 seconds
+  if(sinceGatherStatistics < 5000){ return; }
+
+  rssiStatistic.add(WiFi.RSSI());
+  sinceGatherStatistics = 0;
 }

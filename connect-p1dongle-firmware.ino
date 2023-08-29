@@ -21,7 +21,9 @@
 #include <elapsedMillis.h>
 #include "ledControl.h"
 
-unsigned int fw_ver = 106;
+#include "./src/syslog/Statistic.h"
+
+unsigned int fw_ver = 107;
 unsigned int onlineVersion, fw_new;
 DNSServer dnsServer;
 AsyncWebServer server(80);
@@ -123,6 +125,8 @@ unsigned int mqtt_port;
 unsigned long upload_throttle;
 String eid_webhook;
 
+Xenn::Statistic rssiStatistic;
+
 void setup(){
   M5.begin(true, false, true);
   delay(2000);
@@ -177,6 +181,9 @@ void loop(){
     mqttclient.loop();
   }
   if(wifiScan) scanWifi();
+
+  gatherStatistics();
+
   if(sinceRebootCheck > 2000){
     if(rebootInit){
       //if(!clientSecureBusy){
