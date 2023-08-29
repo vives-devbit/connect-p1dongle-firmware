@@ -124,6 +124,7 @@ boolean update_autoCheck, update_auto, updateAvailable, update_start, update_fin
 unsigned int mqtt_port;
 unsigned long upload_throttle;
 String eid_webhook;
+unsigned int mqttPushCount, mqttPushFails;
 
 Xenn::Statistic rssiStatistic;
 
@@ -241,6 +242,13 @@ void loop(){
     if(mqtt_en){
       if(sinceLastUpload >= upload_throttle * 1000){
         //Serial.println(jsonOutputReadings);
+        String mqtt_topic = "plan-d/" + String(apSSID);
+        if(mqtt_tls){
+          mqttclientSecure.publish(mqtt_topic.c_str(), "online", true);
+        }
+        else{
+          mqttclient.publish(mqtt_topic.c_str(), "online", true);
+        }
         pubMqtt("plan-d/" + String(apSSID) + "/data/readings", jsonOutputReadings, false);
         sinceLastUpload = 0;
       }

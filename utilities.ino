@@ -237,7 +237,7 @@ void checkConnection(){
     mqttClientError = true;
     elapsedMillis restartAttemptTime;
     while (WiFi.status() != WL_CONNECTED && restartAttemptTime < 20000) {
-      WiFi.begin(_wifi_ssid.c_str(), _wifi_password.c_str());
+      WiFi.begin(wifi_ssid.c_str(), wifi_password.c_str());
     }
     if(restartAttemptTime >= 20000) {
       syslog("Wifi reconnection failed! Trying again in a minute", 3);
@@ -250,8 +250,7 @@ void checkConnection(){
     reconncount = 0;
   }
   if(WiFi.status() == WL_CONNECTED){
-    wifiRSSI = WiFi.RSSI();
-    if(_mqtt_en){
+    if(mqtt_en){
       if(mqttPushFails > 5){
         mqttClientError = true;
         syslog("MQTT client connection failed", 4);
