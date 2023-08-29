@@ -22,6 +22,7 @@
 #include "ledControl.h"
 
 #include "./src/syslog/Statistic.h"
+#include "./src/WiFiClientSecure/WiFiClientSecure.h"
 
 unsigned int fw_ver = 107;
 unsigned int onlineVersion, fw_new;
@@ -29,7 +30,7 @@ DNSServer dnsServer;
 AsyncWebServer server(80);
 WiFiClient wificlient;
 PubSubClient mqttclient(wificlient);
-WiFiClientSecure *client = new WiFiClientSecure;
+Xenn::WiFiClientSecure *client = new Xenn::WiFiClientSecure;
 PubSubClient mqttclientSecure(*client);
 HTTPClient https;
 bool bundleLoaded = true;
