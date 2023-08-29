@@ -114,3 +114,13 @@ void pushDebugValues(){
     }
   }
 }
+
+elapsedMillis sinceGatherStatistics;
+
+void gatherStatistics() {
+  // gathering statistics every 5 seconds
+  if(sinceGatherStatistics < 5000){ return; }
+
+  rssiStatistic.add(WiFi.RSSI());
+  sinceGatherStatistics = 0;
+}

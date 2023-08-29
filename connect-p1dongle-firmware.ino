@@ -79,7 +79,7 @@ void IRAM_ATTR pulseCounter2() {
 }
 
 //Global timing vars
-elapsedMillis sinceConnCheck, sinceUpdateCheck, sinceClockCheck, sinceLastUpload, sinceEidUpload, sinceLastWebRequest, sinceRebootCheck, sinceMeterCheck, sinceWifiCheck, sinceTelegramRequest, sinceGatherStatistics;
+elapsedMillis sinceConnCheck, sinceUpdateCheck, sinceClockCheck, sinceLastUpload, sinceEidUpload, sinceLastWebRequest, sinceRebootCheck, sinceMeterCheck, sinceWifiCheck, sinceTelegramRequest;
 
 //Re.alto vars
 String jsonOutputReadings;
@@ -182,11 +182,7 @@ void loop(){
   }
   if(wifiScan) scanWifi();
 
-  // gathering statistics every 5 seconds
-  if(sinceGatherStatistics > 5000){ 
-    rssiStatistic.add(WiFi.RSSI());
-    sinceGatherStatistics = 0;
-  }
+  gatherStatistics();
 
   if(sinceRebootCheck > 2000){
     if(rebootInit){
