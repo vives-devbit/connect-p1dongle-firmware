@@ -107,7 +107,7 @@ time_t dm_timestamp; // dm timestamp
 struct tm mb1_time;  // mbus1 time elements structure
 time_t mb1_timestamp; // mbus1 timestamp
 int prevDay = -1;
-
+ 
 //General housekeeping vars
 unsigned int counter, bootcount, refbootcount, reconncount, remotehostcount, wificheckcount;
 String resetReason, last_reset, last_reset_verbose;
