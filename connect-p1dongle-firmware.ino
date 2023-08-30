@@ -23,6 +23,7 @@
 
 #include "./src/syslog/Statistic.h"
 #include "./src/WiFiClientSecure/WiFiClientSecure.h"
+#include <queue>
 
 unsigned int fw_ver = 107;
 unsigned int onlineVersion, fw_new;
@@ -38,6 +39,14 @@ bool clientSecureBusy, mqttPaused;
 
 #define HWSERIAL Serial1 //Use hardware UART for communication with digital meter
 #define TRIGGER 25 //Pin to trigger meter telegram request
+
+struct SyslogEntry {
+  std::string msg;
+  unsigned long timestamp;
+};
+
+std::queue<SyslogEntry> syslogBuffer;
+static const size_t syslogBufferSize = 50;
 
 //Data structure for pulse counters
 struct pulse {
@@ -80,7 +89,7 @@ void IRAM_ATTR pulseCounter2() {
 }
 
 //Global timing vars
-elapsedMillis sinceConnCheck, sinceUpdateCheck, sinceClockCheck, sinceLastUpload, sinceEidUpload, sinceLastWebRequest, sinceRebootCheck, sinceMeterCheck, sinceWifiCheck, sinceTelegramRequest, sinceGatherStatistics;
+elapsedMillis sinceConnCheck, sinceUpdateCheck, sinceClockCheck, sinceLastUpload, sinceEidUpload, sinceLastWebRequest, sinceRebootCheck, sinceMeterCheck, sinceWifiCheck, sinceTelegramRequest;
 
 //Re.alto vars
 String jsonOutputReadings;
@@ -99,7 +108,7 @@ time_t dm_timestamp; // dm timestamp
 struct tm mb1_time;  // mbus1 time elements structure
 time_t mb1_timestamp; // mbus1 timestamp
 int prevDay = -1;
-
+ 
 //General housekeeping vars
 unsigned int counter, bootcount, refbootcount, reconncount, remotehostcount, wificheckcount;
 String resetReason, last_reset, last_reset_verbose;
@@ -125,6 +134,7 @@ boolean update_autoCheck, update_auto, updateAvailable, update_start, update_fin
 unsigned int mqtt_port;
 unsigned long upload_throttle;
 String eid_webhook;
+unsigned int mqttPushCount, mqttPushFails;
 
 Xenn::Statistic rssiStatistic;
 
@@ -169,7 +179,6 @@ void setup(){
   }
   delay(100);
   initWifi();
-  scanWifi();
   server.begin();
 }
 
@@ -183,11 +192,8 @@ void loop(){
   }
   if(wifiScan) scanWifi();
 
-  // gathering statistics every 5 seconds
-  if(sinceGatherStatistics > 5000){ 
-    rssiStatistic.add(WiFi.RSSI());
-    sinceGatherStatistics = 0;
-  }
+  proccessSyslogBuffer();
+  gatherStatistics();
 
   if(sinceRebootCheck > 2000){
     if(rebootInit){
@@ -247,6 +253,13 @@ void loop(){
     if(mqtt_en){
       if(sinceLastUpload >= upload_throttle * 1000){
         //Serial.println(jsonOutputReadings);
+        String mqtt_topic = "plan-d/" + String(apSSID);
+        if(mqtt_tls){
+          mqttclientSecure.publish(mqtt_topic.c_str(), "online", true);
+        }
+        else{
+          mqttclient.publish(mqtt_topic.c_str(), "online", true);
+        }
         pubMqtt("plan-d/" + String(apSSID) + "/data/readings", jsonOutputReadings, false);
         sinceLastUpload = 0;
       }

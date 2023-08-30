@@ -9,12 +9,14 @@ void setupMqtt() {
     mqttclientSecure.setClient(*client);
     if(upload_throttle > 10){
       mqttclientSecure.setKeepAlive(upload_throttle*2).setSocketTimeout(upload_throttle*2);
+      mqttclientSecure.setBufferSize(1024);
     }
   }
   else {
     mqttclient.setClient(wificlient);
     if(upload_throttle > 10){
       mqttclient.setKeepAlive(upload_throttle*2).setSocketTimeout(upload_throttle*2);
+      mqttclientSecure.setBufferSize(1024);
     }
   }
   /*Set broker location*/
@@ -85,11 +87,12 @@ void connectMqtt() {
     // Loop until we're (re)connected
     int mqttretry = 0;
     bool disconnected = false;
-    if(mqtt_tls && !clientSecureBusy){
+    if(mqtt_tls){
+      if(mqttClientError) mqttclientSecure.disconnect();
       if(!mqttclientSecure.connected()) {
         disconnected = true;
         if(mqttWasConnected){
-          if(!mqttPaused) syslog("Lost connection to secure MQTT broker", 2);
+          if(!mqttPaused) syslog("Lost connection to secure MQTT broker", 4);
           if(unitState < 6) unitState = 5;
         }
         syslog("Trying to connect to secure MQTT broker", 0);
@@ -100,18 +103,20 @@ void connectMqtt() {
           else mqttclientSecure.connect(mqtt_id.c_str());
           mqttretry++;
           remotehostcount++;
+          reconncount++;
           delay(250);
         }
         Serial.println("");
       }
     }
     else{
+      if(mqttClientError) mqttclient.disconnect();
       if(!mqttclient.connected()) {
         disconnected = true;
         if(mqttWasConnected){
           //reconncount++;
           if(!mqttPaused){
-            syslog("Lost connection to MQTT broker", 2);
+            syslog("Lost connection to MQTT broker", 4);
             if(unitState < 6) unitState = 5;
           }
         }
@@ -149,7 +154,7 @@ void connectMqtt() {
         reconncount = 0;
       }
       else{
-        syslog("Failed to connect to MQTT broker", 3);
+        syslog("Failed to connect to MQTT broker", 4);
         mqttClientError = true;
         if(unitState < 6) unitState = 5;
       }
@@ -160,19 +165,37 @@ void connectMqtt() {
   }
 }
 
-void pubMqtt(String topic, String payload, boolean retain){
-  if(mqtt_en && !mqttClientError && !clientSecureBusy){
+bool pubMqtt(String topic, String payload, boolean retain){
+  bool pushed = false;
+  if(mqtt_en && !mqttClientError && !mqttHostError){
     if(mqtt_tls){
       if(mqttclientSecure.connected()){
-        mqttclientSecure.publish(topic.c_str(), payload.c_str(), retain);
+        if(mqttclientSecure.publish(topic.c_str(), payload.c_str(), retain)){
+          mqttPushFails = 0;
+          pushed = true;
+        }
+        else mqttPushFails++;
+      }
+      else{
+        mqttClientError = true;
+        sinceConnCheck = 60000;
       }
     }
     else{
       if(mqttclient.connected()){
-        mqttclient.publish(topic.c_str(), payload.c_str(), retain);
+        if(mqttclient.publish(topic.c_str(), payload.c_str(), retain)){
+          mqttPushFails = 0;
+          pushed = true;
+        }
+        else mqttPushFails++;
+      }
+      else{
+        mqttClientError = true;
+        sinceConnCheck = 60000;
       }
     }
   }
+  return pushed;
 }
 
 void haAutoDiscovery(boolean eraseMeter){

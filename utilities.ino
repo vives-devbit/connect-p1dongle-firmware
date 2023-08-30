@@ -87,6 +87,7 @@ void initSPIFFS(){
 }
 
 void initWifi(){
+  scanWifi();
   if(wifiSTA){
     syslog("WiFi mode: station", 1);
     WiFi.mode(WIFI_STA);
@@ -104,6 +105,10 @@ void initWifi(){
       MDNS.begin("p1dongle");
       if(spiffsMounted) unitState = 4;
       else unitState = 7;
+      /*Add WiFi events to immediately detect WiFi changes*/
+      WiFi.onEvent(WiFiEvent, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_LOST_IP);
+      WiFi.onEvent(WiFiEvent, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_AUTHMODE_CHANGE);
+      WiFi.onEvent(WiFiEvent, WiFiEvent_t::ARDUINO_EVENT_WIFI_STA_DISCONNECTED);
       MDNS.addService("http", "tcp", 80);
       /*Start NTP time sync*/
       setClock(true);
@@ -216,30 +221,44 @@ void setMeterTime(){
   }
 }
 
+void WiFiEvent(WiFiEvent_t event, WiFiEventInfo_t info){
+  /*If a change in WiFi happens, skip immediately to checking the connection*/
+  Serial.println("Disconnected from WiFi access point");
+  Serial.print("WiFi lost connection. Reason: ");
+  Serial.println(info.wifi_sta_disconnected.reason);
+  sinceConnCheck = 60000;
+}
+
 void checkConnection(){
   if(WiFi.status() != WL_CONNECTED){
     syslog("Lost WiFi connection, trying to reconnect", 2);
     WiFi.disconnect();
+    wifiError = true;
+    mqttClientError = true;
     elapsedMillis restartAttemptTime;
     while (WiFi.status() != WL_CONNECTED && restartAttemptTime < 20000) {
-      WiFi.reconnect();
+      WiFi.begin(wifi_ssid.c_str(), wifi_password.c_str());
     }
     if(restartAttemptTime >= 20000) {
       syslog("Wifi reconnection failed! Trying again in a minute", 3);
       reconncount++;
-      wifiError = true;
     }
   }
   if(wifiError && WiFi.status() == WL_CONNECTED){
     wifiError = false;
     syslog("Reconnected to the WiFi network", 0);
-    if(!mqtt_en) reconncount = 0;
+    reconncount = 0;
   }
   if(WiFi.status() == WL_CONNECTED){
     if(mqtt_en){
-      connectMqtt();
-      if(ha_en && !ha_metercreated) haAutoDiscovery(1);
-      else if(ha_en && ha_metercreated) haAutoDiscovery(0);
+      if(mqttPushFails > 5){
+        mqttClientError = true;
+        syslog("MQTT client connection failed", 4);
+        mqttPushFails = 0;
+        reconncount++;
+      }
+      if(mqttHostError) setupMqtt();
+      else connectMqtt();
     }
   }
 }
