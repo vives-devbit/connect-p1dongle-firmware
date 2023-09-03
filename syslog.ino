@@ -46,27 +46,3 @@ bool publishSyslog(SyslogEntry entry) {
   serializeJson(doc, jsonOutput);
   return pubMqtt(dtopic, jsonOutput, true);
 }
-
-void bufferSyslog(SyslogEntry entry) {
-  // buffer syslog messages in case mqtt is not enabled
-  log_v("Buffering syslog message: %s", entry.msg.c_str());
-  syslogBuffer.push(entry);
-  while(syslogBuffer.size() > syslogBufferSize) syslogBuffer.pop();
-}
-
-elapsedMillis sinceLastSyslogPublishFail;
-
-void proccessSyslogBuffer() {
-  if(sinceLastSyslogPublishFail < 10000) return; // don't try to publish imidiatly after a fail (to avoid flooding mqtt)
-  // empty syslog buffer
-  while(!syslogBuffer.empty()){
-    SyslogEntry entry = syslogBuffer.front();
-    if(!publishSyslog(entry)) { 
-      log_e("Failed to publish syslog message: %s", entry.msg.c_str());
-      sinceLastSyslogPublishFail = 0;
-      break; 
-    };
-    log_d("Published syslog message from buffer: %s", entry.msg.c_str());
-    syslogBuffer.pop();
-  }
-}

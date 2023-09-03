@@ -22,9 +22,9 @@
 #include "ledControl.h"
 
 #include "./src/syslog/Statistic.h"
-#include <queue>
 
-unsigned int fw_ver = 107;
+
+unsigned int fw_ver = 108;
 unsigned int onlineVersion, fw_new;
 DNSServer dnsServer;
 AsyncWebServer server(80);
@@ -43,9 +43,6 @@ struct SyslogEntry {
   std::string msg;
   unsigned long timestamp;
 };
-
-std::queue<SyslogEntry> syslogBuffer;
-static const size_t syslogBufferSize = 50;
 
 //Data structure for pulse counters
 struct pulse {
@@ -191,7 +188,6 @@ void loop(){
   }
   if(wifiScan) scanWifi();
 
-  proccessSyslogBuffer();
   gatherStatistics();
 
   if(sinceRebootCheck > 2000){
