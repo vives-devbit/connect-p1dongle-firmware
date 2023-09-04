@@ -117,7 +117,7 @@ void initWifi(){
         syslog("Setting up TLS/SSL client", 0);
         client->setUseCertBundle(true);
         // Load certbundle from SPIFFS
-        File file = SPIFFS.open("/cert/x509_crt_bundle.bin");
+        File file = SPIFFS.open("/cert/x509_crt_bundle_small.bin");
         if(!file || file.isDirectory()) {
             syslog("Could not load cert bundle from SPIFFS", 3);
             bundleLoaded = false;
